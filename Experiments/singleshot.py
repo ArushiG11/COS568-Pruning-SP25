@@ -8,6 +8,33 @@ from Utils import metrics
 from train import *
 from prune import *
 import time
+import timeit
+
+def measure_inference_time(model, test_loader, device, num_runs=3):
+    
+    model.eval()  # Set model to evaluation mode
+    
+    # Function to measure one complete inference pass
+    def inference_pass():
+        with torch.no_grad():  # Disable gradient calculation for inference
+            for data, target in test_loader:
+                data, target = data.to(device), target.to(device)
+                _ = model(data)
+    
+    # Warm-up run (not timed)
+    inference_pass()
+    
+    # Timed runs
+    times = []
+    for _ in range(num_runs):
+        start = timeit.default_timer()
+        inference_pass()
+        end = timeit.default_timer()
+        times.append(end - start)
+    
+    # Return average time
+    avg_time = sum(times) / len(times)
+    return avg_time
 
 
 def run(args):
@@ -56,6 +83,11 @@ def run(args):
     training_time = end - start
     print(f"Post-training time: {training_time:.2f} seconds")
 
+    ## Measure Inference Time ##
+    print('Measuring inference time...')
+    inference_time = measure_inference_time(model, test_loader, device)
+    print(f"Inference time: {inference_time:.4f} seconds")
+
     # Log GPU memory usage (if CUDA is being used)
     if torch.cuda.is_available() and not args.no_cuda:
         mem_current = torch.cuda.memory_allocated(device)
@@ -79,7 +111,7 @@ def run(args):
     print("Prune results:\n", prune_result)
     print("Parameter Sparsity: {}/{} ({:.4f})".format(total_params, possible_params, total_params / possible_params))
     print("FLOP Sparsity: {}/{} ({:.4f})".format(total_flops, possible_flops, total_flops / possible_flops))
-
+    print("Inference Time: {:.4f} seconds".format(inference_time))
     ## Save Results and Model ##
     if args.save:
         print('Saving results.')
