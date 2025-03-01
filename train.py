@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from torch.amp import autocast, GradScaler
-
+import timeit
 
 def train(model, loss, optimizer, dataloader, device, epoch, verbose, log_interval=10, use_amp=False):
     model.train()
@@ -42,6 +42,9 @@ def eval(model, loss, dataloader, device, verbose):
     total = 0
     correct1 = 0
     correct5 = 0
+
+    start_time = timeit.default_timer()
+
     with torch.no_grad():
         for data, target in dataloader:
             data, target = data.to(device), target.to(device)
@@ -51,12 +54,17 @@ def eval(model, loss, dataloader, device, verbose):
             correct = pred.eq(target.view(-1, 1).expand_as(pred))
             correct1 += correct[:,:1].sum().item()
             correct5 += correct[:,:5].sum().item()
+
+    end_time = timeit.default_timer()
+    inference_time = end_time - start_time
+
     average_loss = total / len(dataloader.dataset)
     accuracy1 = 100. * correct1 / len(dataloader.dataset)
     accuracy5 = 100. * correct5 / len(dataloader.dataset)
     if verbose:
         print('Evaluation: Average loss: {:.4f}, Top 1 Accuracy: {}/{} ({:.2f}%)'.format(
             average_loss, correct1, len(dataloader.dataset), accuracy1))
+        print(f"Testing (inference) time for one forward pass: {inference_time:.4f} seconds")
     return average_loss, accuracy1, accuracy5
 
 def train_eval_loop(model, loss, optimizer, scheduler, train_loader, test_loader, device, epochs, verbose, use_amp=False):
