@@ -43,8 +43,6 @@ def eval(model, loss, dataloader, device, verbose):
     correct1 = 0
     correct5 = 0
 
-    start_time = timeit.default_timer()
-
     with torch.no_grad():
         for data, target in dataloader:
             data, target = data.to(device), target.to(device)
@@ -55,20 +53,20 @@ def eval(model, loss, dataloader, device, verbose):
             correct1 += correct[:,:1].sum().item()
             correct5 += correct[:,:5].sum().item()
 
-    end_time = timeit.default_timer()
-    inference_time = end_time - start_time
-
     average_loss = total / len(dataloader.dataset)
     accuracy1 = 100. * correct1 / len(dataloader.dataset)
     accuracy5 = 100. * correct5 / len(dataloader.dataset)
     if verbose:
         print('Evaluation: Average loss: {:.4f}, Top 1 Accuracy: {}/{} ({:.2f}%)'.format(
             average_loss, correct1, len(dataloader.dataset), accuracy1))
-        print(f"Testing (inference) time for one forward pass: {inference_time:.4f} seconds")
     return average_loss, accuracy1, accuracy5
 
 def train_eval_loop(model, loss, optimizer, scheduler, train_loader, test_loader, device, epochs, verbose, use_amp=False):
+    start_time = timeit.default_timer()
     test_loss, accuracy1, accuracy5 = eval(model, loss, test_loader, device, verbose)
+    end_time = timeit.default_timer()
+    inference_time = end_time - start_time
+    print(f"Testing (inference) time for one forward pass: {inference_time:.4f} seconds")
     rows = [[np.nan, test_loss, accuracy1, accuracy5]]
     for epoch in tqdm(range(epochs)):
         train_loss = train(model, loss, optimizer, train_loader, device, epoch, verbose, use_amp=use_amp)
